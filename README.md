@@ -52,3 +52,8 @@ Basic usage:
     </pluginRepository>
   </pluginRepositories>
 </project>
+```
+My typical use case as part of a web application looks like this:
+```
+R=/path/to/my/R mvn rserve:start jetty:run rserve:stop
+```

@@ -5,7 +5,7 @@
 
   <groupId>edu.dfci.cccb</groupId>
   <artifactId>rserve-maven-plugin</artifactId>
-  <version>0.0.4</version>
+  <version>0.0.5</version>
   <packaging>maven-plugin</packaging>
 
   <name>rserve-maven-plugin</name>

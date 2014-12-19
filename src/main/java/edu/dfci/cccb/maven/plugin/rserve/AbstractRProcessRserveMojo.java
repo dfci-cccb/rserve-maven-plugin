@@ -16,18 +16,15 @@
 
 package edu.dfci.cccb.maven.plugin.rserve;
 
-import static java.lang.System.err;
 import static java.lang.System.getenv;
-import static java.lang.System.out;
 import static java.nio.channels.Channels.newChannel;
 
 import java.io.BufferedOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
 import java.io.PrintStream;
+import java.lang.ProcessBuilder.Redirect;
 import java.net.URL;
 import java.nio.channels.ReadableByteChannel;
 import java.util.ArrayList;
@@ -81,7 +78,12 @@ public abstract class AbstractRProcessRserveMojo extends AbstractRserveMojo {
     }
 
     protected Process r () throws IOException {
-      return rBuilder ().start ();
+      ProcessBuilder builder = rBuilder ();
+      if (inheritIO) {
+        builder.redirectError (Redirect.INHERIT);
+        builder.redirectOutput (Redirect.INHERIT);
+      }
+      return builder.start ();
     }
 
     protected Process r;
@@ -90,52 +92,6 @@ public abstract class AbstractRProcessRserveMojo extends AbstractRserveMojo {
     public R () throws IOException {
       this.r = r ();
       this.feed = new PrintStream (new BufferedOutputStream (r.getOutputStream ()));
-      if (inheritIO) {
-        class Sink extends Thread {
-          private final InputStream source;
-          private final OutputStream target;
-
-          public Sink (InputStream source, OutputStream target) {
-            setDaemon (true);
-            this.source = source;
-            this.target = target;
-            new Thread () {
-              {
-                setDaemon (true);
-              }
-
-              public void run () {
-                for (;;)
-                  try {
-                    sleep (3000);
-                  } catch (InterruptedException e) {
-                    break;
-                  } finally {
-                    try {
-                      Sink.this.target.flush ();
-                    } catch (IOException e) {}
-                  }
-              }
-            }.start ();
-          }
-
-          @Override
-          public void run () {
-            for (;;)
-              try {
-                target.write (source.read ());
-              } catch (IOException e) {
-                try {
-                  target.flush ();
-                  break;
-                } catch (IOException e1) {}
-              }
-          }
-        };
-
-        new Sink (r.getInputStream (), new BufferedOutputStream (out)).start ();
-        new Sink (r.getErrorStream (), new BufferedOutputStream (err)).start ();
-      }
     }
 
     public void evaluate (String command) {
@@ -181,7 +137,7 @@ public abstract class AbstractRProcessRserveMojo extends AbstractRserveMojo {
       }
     if (onRequest != null) {
       argsArgs.add ("--RS-set");
-      argsArgs.add ("eval=" + onRequest);
+      argsArgs.add ("eval=function(){" + onRequest + "}");
     }
     return argsArgs;
   }

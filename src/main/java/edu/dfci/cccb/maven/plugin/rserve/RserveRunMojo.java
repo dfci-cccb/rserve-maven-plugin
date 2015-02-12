@@ -21,7 +21,7 @@ import org.apache.maven.plugins.annotations.Mojo;
 @Mojo (name = "run")
 public class RserveRunMojo extends AbstractRProcessRserveMojo {
 
-  public RserveRunMojo (boolean block) {
+  public RserveRunMojo () {
     super (true);
   }
 }

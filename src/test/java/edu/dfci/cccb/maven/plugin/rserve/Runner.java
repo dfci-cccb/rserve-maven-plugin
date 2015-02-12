@@ -16,8 +16,7 @@
 
 package edu.dfci.cccb.maven.plugin.rserve;
 
-import java.util.Arrays;
-
+import org.rosuda.REngine.REXP;
 import org.rosuda.REngine.REXPMismatchException;
 import org.rosuda.REngine.Rserve.RConnection;
 import org.rosuda.REngine.Rserve.RSession;
@@ -43,11 +42,10 @@ public class Runner {
     this (6311);
   }
 
-  @SuppressWarnings ("unchecked")
-  public <T> T eval (String cmd) throws RserveException, REXPMismatchException {
+  public REXP eval (String cmd) throws RserveException, REXPMismatchException {
     RConnection connection = session.attach ();
     try {
-      return (T) connection.eval (cmd).asNativeJavaObject ();
+      return connection.eval (cmd);
     } finally {
       session = connection.detach ();
     }
@@ -55,8 +53,31 @@ public class Runner {
 
   public static void main (String[] args) throws Exception {
     Runner r = new Runner ();
-    System.out.println (Arrays.toString ((String[]) r.eval (".libPaths()")));
-    System.out.println (Arrays.toString ((String[]) r.eval (".basedir")));
-    System.out.println (Arrays.toString ((double[]) r.eval ("x")));
+    try {
+      dump ("", (REXP) r.eval ("h"));
+    } catch (Exception e) {}
+    r.eval ("h<- 7");
+    System.out.println (r.eval ("h").asDouble ());
+
+    REXP e = r.eval
+              ("expression (VARIABLE <- try (binder (callback = function (binder) { "
+               +
+               "define ('PARAMETER', function () VALUE, binder); define ('PARAMETER', "
+               + "function () VALUE, binder); inject (FUNCTION, binder); })))");
+
+    dump ("", e);
+  }
+
+  private static void dump (String prefix, REXP e) throws REXPMismatchException {
+    if (e.isList ()) {
+      System.out.println (prefix + e.getClass ());
+      for (Object o : e.asList ())
+        dump (prefix + "  ", (REXP) o);
+    } else if (e.isSymbol ())
+      System.out.println (prefix + e.getClass () + ":" + e.asString () + ":" + e.toDebugString ());
+    else if (e.isString ())
+      System.out.println (prefix + e.getClass () + ":" + e.asString ());
+    else
+      System.out.println (prefix + e.getClass () + "*****");
   }
 }

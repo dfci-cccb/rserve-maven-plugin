@@ -16,19 +16,15 @@
 
 package edu.dfci.cccb.maven.plugin.rserve;
 
-import static java.lang.System.err;
 import static java.lang.System.getenv;
-import static java.lang.System.out;
 import static java.nio.channels.Channels.newChannel;
 
-import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
 import java.io.PrintStream;
+import java.lang.ProcessBuilder.Redirect;
 import java.net.URL;
 import java.nio.channels.ReadableByteChannel;
 import java.util.ArrayList;
@@ -50,14 +46,14 @@ public abstract class AbstractRProcessRserveMojo extends AbstractRserveMojo {
   private @Parameter String onRequest;
   private @Parameter String onInitialize;
 
-  private/* @Parameter (defaultValue = "false") */boolean mainDebug = false;
   private final boolean debug;
+  private @Parameter boolean inheritIO;
 
   private @Parameter (required = true, defaultValue = "${project.build.directory}/rserve") File rserveInstallDirectory;
   private @Parameter (required = true, defaultValue = "http://rforge.net/src/contrib/Rserve_1.8-1.tar.gz") URL rserveSource;
 
   protected AbstractRProcessRserveMojo (boolean debug) {
-    this.debug = debug;
+    this.debug = inheritIO = debug;
   }
 
   protected class R {
@@ -82,7 +78,12 @@ public abstract class AbstractRProcessRserveMojo extends AbstractRserveMojo {
     }
 
     protected Process r () throws IOException {
-      return rBuilder ().start ();
+      ProcessBuilder builder = rBuilder ();
+      if (inheritIO) {
+        builder.redirectError (Redirect.INHERIT);
+        builder.redirectOutput (Redirect.INHERIT);
+      }
+      return builder.start ();
     }
 
     protected Process r;
@@ -91,29 +92,6 @@ public abstract class AbstractRProcessRserveMojo extends AbstractRserveMojo {
     public R () throws IOException {
       this.r = r ();
       this.feed = new PrintStream (new BufferedOutputStream (r.getOutputStream ()));
-      if (mainDebug) {
-        class Sink extends Thread {
-          private final InputStream source;
-          private final OutputStream target;
-
-          public Sink (InputStream source, OutputStream target) {
-            this.source = source;
-            this.target = target;
-          }
-
-          @Override
-          public void run () {
-            for (;;)
-              try {
-                target.write (source.read ());
-                target.flush ();
-              } catch (IOException e) {}
-          }
-        };
-
-        new Sink (new BufferedInputStream (r.getInputStream ()), out).start ();
-        new Sink (new BufferedInputStream (r.getErrorStream ()), err).start ();
-      }
     }
 
     public void evaluate (String command) {
@@ -141,8 +119,7 @@ public abstract class AbstractRProcessRserveMojo extends AbstractRserveMojo {
     }
     r.evaluate (".libPaths ('" + rserveInstallDirectory.getAbsolutePath () + "');");
     if (!new File (rserveInstallDirectory, "Rserve").exists ())
-      r.evaluate ("tryCatch (install.packages ('" + source.getAbsolutePath () + "', type = 'source', repo = NULL), "
-                  + "error = unlink ('" + new File (rserveInstallDirectory, "Rserve").getAbsolutePath () + "'));");
+      r.evaluate ("install.packages ('" + source.getAbsolutePath () + "', type = 'source', repo = NULL);");
   }
 
   protected void prepare (R r) {
@@ -160,7 +137,7 @@ public abstract class AbstractRProcessRserveMojo extends AbstractRserveMojo {
       }
     if (onRequest != null) {
       argsArgs.add ("--RS-set");
-      argsArgs.add ("eval=" + onRequest);
+      argsArgs.add ("eval=function(){" + onRequest + "}");
     }
     return argsArgs;
   }

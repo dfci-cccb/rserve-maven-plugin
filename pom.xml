@@ -5,7 +5,7 @@
 
   <groupId>edu.dfci.cccb</groupId>
   <artifactId>rserve-maven-plugin</artifactId>
-  <version>0.0.4</version>
+  <version>0.0.6</version>
   <packaging>maven-plugin</packaging>
 
   <name>rserve-maven-plugin</name>
@@ -60,6 +60,22 @@
         <configuration>
           <goalPrefix>rserve</goalPrefix>
         </configuration>
+        <executions>
+          <execution>
+            <id>default-descriptor</id>
+            <goals>
+              <goal>descriptor</goal>
+            </goals>
+            <phase>process-classes</phase>
+          </execution>
+          <execution>
+            <id>help-descriptor</id>
+            <goals>
+              <goal>helpmojo</goal>
+            </goals>
+            <phase>process-classes</phase>
+          </execution>
+        </executions>
       </plugin>
 
     </plugins>
